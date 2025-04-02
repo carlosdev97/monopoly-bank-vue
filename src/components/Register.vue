@@ -47,6 +47,7 @@
         </form>
       </div>
     </div>
+    <Toast ref="toastRef" :message="toastMessage" :color="color" />
   </div>
 </template>
 
@@ -59,20 +60,56 @@ import {
   setDoc,
   doc,
 } from "../firebaseConfig";
+import { query, collection, where, getDocs } from "firebase/firestore";
+import { useRouter } from "vue-router";
+import Toast from "./Toast.vue";
 
 export default {
+  components: {
+    Toast,
+  },
   setup() {
     const username = ref("");
     const email = ref("");
     const password = ref("");
     const confirmPassword = ref("");
+    const toastRef = ref(null);
+    const toastMessage = ref("");
+    const color = ref(""); // Color del Toast, puedes cambiarlo a "success", "danger", etc.
 
+    // Función para mostrar el Toast con un mensaje específico
+    const showNotification = (message, newColor) => {
+      toastMessage.value = message;
+      color.value = newColor;
+      if (toastRef.value) {
+        toastRef.value.showToast();
+      }
+    };
+
+    // Función para verificar si el usuario ya existe
+    const checkUserExists = async (email) => {
+      const userRef = query(
+        collection(db, "users"),
+        where("email", "==", email)
+      );
+      const userSnapshot = await getDocs(userRef);
+      return !userSnapshot.empty; // Si el usuario ya existe, devuelve true
+    };
+
+    // Función para manejar el registro de usuarios
     const handleSubmit = async () => {
       if (password.value !== confirmPassword.value) {
-        alert("Las contraseñas no coinciden");
+        showNotification("Las contraseñas no coinciden", "bg-danger");
         return;
       }
-      console.log("Registering user...");
+
+      console.log("Verificando usuario...");
+      const userExists = await checkUserExists(email.value);
+      if (userExists) {
+        showNotification("Este correo ya está registrado", "bg-danger");
+        return;
+      }
+
       try {
         const userCredential = await createUserWithEmailAndPassword(
           auth,
@@ -88,13 +125,24 @@ export default {
           createdAt: new Date(),
         });
 
-        alert("Usuario registrado con éxito");
+        showNotification("Usuario registrado con éxito", "bg-success");
+        router.push("/login");
       } catch (error) {
         console.log(error.message);
       }
     };
 
-    return { username, email, password, confirmPassword, handleSubmit };
+    return {
+      username,
+      email,
+      password,
+      confirmPassword,
+      handleSubmit,
+      toastRef,
+      toastMessage,
+      color,
+      showNotification,
+    };
   },
 };
 </script>
