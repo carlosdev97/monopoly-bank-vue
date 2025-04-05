@@ -47,7 +47,6 @@
         </form>
       </div>
     </div>
-    <Toast ref="toastRef" :message="toastMessage" :color="color" />
   </div>
 </template>
 
@@ -60,31 +59,19 @@ import {
   setDoc,
   doc,
 } from "../firebaseConfig";
+import { updateProfile } from "firebase/auth";
 import { query, collection, where, getDocs } from "firebase/firestore";
 import { useRouter } from "vue-router";
-import Toast from "./Toast.vue";
+import { toast } from "vue3-toastify";
 
 export default {
-  components: {
-    Toast,
-  },
   setup() {
     const username = ref("");
     const email = ref("");
     const password = ref("");
     const confirmPassword = ref("");
-    const toastRef = ref(null);
-    const toastMessage = ref("");
-    const color = ref(""); // Color del Toast, puedes cambiarlo a "success", "danger", etc.
 
-    // Función para mostrar el Toast con un mensaje específico
-    const showNotification = (message, newColor) => {
-      toastMessage.value = message;
-      color.value = newColor;
-      if (toastRef.value) {
-        toastRef.value.showToast();
-      }
-    };
+    const router = useRouter();
 
     // Función para verificar si el usuario ya existe
     const checkUserExists = async (email) => {
@@ -98,25 +85,31 @@ export default {
 
     // Función para manejar el registro de usuarios
     const handleSubmit = async () => {
-      if (password.value !== confirmPassword.value) {
-        showNotification("Las contraseñas no coinciden", "bg-danger");
+      if (!username.value || !email.value || !password.value) {
+        toast.error("Por favor, completa todos los campos");
         return;
       }
 
-      console.log("Verificando usuario...");
-      const userExists = await checkUserExists(email.value);
-      if (userExists) {
-        showNotification("Este correo ya está registrado", "bg-danger");
+      if (password.value !== confirmPassword.value) {
+        toast.error("Las contraseñas no coinciden");
         return;
       }
 
       try {
+        const userExists = await checkUserExists(email.value);
+        if (userExists) {
+          toast.error("El correo ya está en uso");
+          return;
+        }
+
         const userCredential = await createUserWithEmailAndPassword(
           auth,
           email.value,
           password.value
         );
         const user = userCredential.user;
+
+        await updateProfile(user, { displayName: username.value });
 
         // Guardar en Firestore
         await setDoc(doc(db, "users", user.uid), {
@@ -125,7 +118,7 @@ export default {
           createdAt: new Date(),
         });
 
-        showNotification("Usuario registrado con éxito", "bg-success");
+        toast.success("¡Registro exitoso!");
         router.push("/login");
       } catch (error) {
         console.log(error.message);
@@ -138,10 +131,6 @@ export default {
       password,
       confirmPassword,
       handleSubmit,
-      toastRef,
-      toastMessage,
-      color,
-      showNotification,
     };
   },
 };

@@ -35,15 +35,39 @@
 </template>
 
 <script>
+import { ref } from "vue";
+import { toast } from "vue3-toastify";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebaseConfig";
+import { useRouter } from "vue-router";
+
 export default {
-  data() {
-    return {
-      email: "",
-      password: "",
+  setup() {
+    const email = ref("");
+    const password = ref("");
+
+    const router = useRouter();
+
+    const handleSubmit = async () => {
+      if (!email.value || !password.value) {
+        toast.error("Por favor, completa todos los campos.");
+        return;
+      }
+
+      try {
+        await signInWithEmailAndPassword(auth, email.value, password.value);
+        toast.success("Inicio de sesión exitoso.");
+        router.push("/lobby"); // Redirigir a la página de lobby después de iniciar sesión
+      } catch (error) {
+        toast.error("Error al iniciar sesión. Inténtalo de nuevo.");
+      }
     };
-  },
-  methods: {
-    handleSubmit() {},
+
+    return {
+      email,
+      password,
+      handleSubmit,
+    };
   },
 };
 </script>
